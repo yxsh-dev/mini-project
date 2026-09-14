@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus ANPR Dashboard</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #111827;
+            color: white;
+        }
+
+        header {
+            background: #1f2937;
+            padding: 18px;
+            text-align: center;
+        }
+
+        main {
+            width: 92%;
+            max-width: 1100px;
+            margin: 25px auto;
+        }
+
+        .card {
+            background: #1f2937;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 24px;
+        }
+
+        .camera {
+            width: 100%;
+            max-width: 850px;
+            display: block;
+            margin: auto;
+            border-radius: 8px;
+        }
+
+        .date-heading {
+            margin: 0 0 14px;
+            color: #93c5fd;
+            font-size: 22px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #8309f6;
+            padding: 12px;
+        }
+
+        td {
+            text-align: center;
+            padding: 12px;
+            border-bottom: 1px solid #374151;
+        }
+
+        .entry {
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+        .exit {
+            color: #f87171;
+            font-weight: bold;
+        }
+
+        .message {
+            color: #cbd5e1;
+            text-align: center;
+            padding: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>🚌 Bus ANPR Dashboard</h1>
+        <p>Live Number Plate Detection</p>
+    </header>
+
+    <main>
+        <div class="card">
+            <h2>📷 Live Camera</h2>
+            <img class="camera" src="{{ url_for('video_feed') }}" alt="Live camera feed">
+        </div>
+
+        <div id="records-container">
+            <div class="card">
+                <p class="message">Loading records...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function loadRecords() {
+            const container = document.getElementById("records-container");
+
+            try {
+                const response = await fetch("/api/records");
+
+                if (!response.ok) {
+                    throw new Error("Could not load records");
+                }
+
+                const data = await response.json();
+
+                if (data.length === 0) {
+                    container.innerHTML = `
+                        <div class="card">
+                            <p class="message">
+                                No bus records available yet.
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = "";
+
+                // One separate table for every date.
+                data.forEach(day => {
+                    html += `
+                        <div class="card">
+                            <h2 class="date-heading">
+                                📅 ${day.date}
+                            </h2>
+
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Bus Number</th>
+                                        <th>Time</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                    `;
+
+                    day.records.forEach(row => {
+                        const statusClass =
+                            row.status === "Entry" ? "entry" : "exit";
+
+                        html += `
+                            <tr>
+                                <td>${row.bus_number}</td>
+                                <td>${row.time}</td>
+                                <td class="${statusClass}">
+                                    ${row.status}
+                                </td>
+                            </tr>
+                        `;
+                    });
+
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error(error);
+
+                container.innerHTML = `
+                    <div class="card">
+                        <p class="message">
+                            Could not load bus records.
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        loadRecords();
+
+        // Updates records only; it does not reload the camera page.
+        setInterval(loadRecords, 2000);
+    </script>
+</body>
+
+</html>
